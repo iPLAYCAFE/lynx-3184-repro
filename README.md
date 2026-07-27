@@ -117,19 +117,25 @@ decoding and evaluating it.
 
 Three, because the failure is a race and a race is easy to misattribute.
 
-**1. Removing the short-circuit fixes it** — same build, same harness, only
-branch (A) disabled (`node scripts/patch-shortcircuit.mjs --off`):
+**1. The failure tracks branch (A) exactly** — same build, same harness, three
+arms, only the branch predicate changed (`scripts/patch-shortcircuit.mjs`):
 
-| `nativeApp.queryComponent` | boots | `Snapshot not found` |
-| -------------------------- | ----- | -------------------- |
-| as shipped                 | 12    | **12/12**            |
-| `(A)` disabled, always RPC | 12    | **0/12**             |
+| `nativeApp.queryComponent`          | boots | `Snapshot not found` |
+| ----------------------------------- | ----- | -------------------- |
+| as shipped (`templateCache.has(…)`) | 12    | **12/12**            |
+| forced to (A) — always short-circuit| 12    | **12/12**            |
+| forced to (B) — always the RPC      | 12    | **0/12**             |
 
-Note the **polarity**: forcing (A) *always on* does **not** reproduce the bug,
-because then `loadDynamicComponent`'s synchronous XHR misses the HTTP cache and
-blocks the worker long enough for the page thread to catch up. Removing (A) is
-the informative direction. (An earlier attempt on our side ran it the other way
-and drew the wrong conclusion from the null result.)
+Disabling (A) eliminates the failure; nothing else about the build changes.
+
+Note on the middle arm: in [an earlier comment on the issue][forced] the
+reporter (me) forced (A) unconditionally in a large app, got a clean boot, and
+concluded the mechanism was not established. **That null result does not
+replicate here** — forcing (A) reproduces 12/12. So that experiment said
+something about that particular patched build, not about the mechanism, and the
+conclusion drawn from it should be disregarded.
+
+[forced]: https://github.com/lynx-family/lynx-stack/issues/3184#issuecomment-5078040211
 
 **2. Dose-response on the chunk's size** — the mechanism says the window is the
 page thread's `loadScript` + `processEvalResult` interval, so it should widen

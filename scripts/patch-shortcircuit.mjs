@@ -6,7 +6,8 @@
 // main thread is on, and therefore cannot resolve before `processEvalResult`
 // has registered the chunk's snapshots.
 //
-//   node scripts/patch-shortcircuit.mjs --off       disable the short-circuit
+//   node scripts/patch-shortcircuit.mjs --off        disable the short-circuit
+//   node scripts/patch-shortcircuit.mjs --force      take it unconditionally
 //   node scripts/patch-shortcircuit.mjs --restore    put it back
 //
 // Note the POLARITY. Forcing the short-circuit ALWAYS ON does not reproduce the
@@ -25,7 +26,11 @@ import { fileURLToPath } from "node:url";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const target = path.join(root, "www", "static", "js", "async", "web-core-worker-chunk.js");
 const backup = `${target}.orig`;
-const mode = process.argv.includes("--restore") ? "restore" : "off";
+const mode = process.argv.includes("--restore")
+  ? "restore"
+  : process.argv.includes("--force")
+  ? "force"
+  : "off";
 
 if (!existsSync(target)) {
   console.error(`patch-shortcircuit: ${target} missing — run \`pnpm run build\` first.`);
@@ -64,9 +69,12 @@ if (!source.includes("__hasReady")) {
 }
 
 const [match] = matches;
+// `false?` => always the RPC branch (B). `true?` => always the short-circuit (A).
+const predicate = mode === "force" ? "true" : "false";
 const patched = source.replace(
   pattern,
-  (_all, sourceArg, callbackArg) => `queryComponent:(${sourceArg},${callbackArg})=>{false?`,
+  (_all, sourceArg, callbackArg) =>
+    `queryComponent:(${sourceArg},${callbackArg})=>{${predicate}?`,
 );
 
 if (patched === source) {
@@ -77,7 +85,11 @@ if (patched === source) {
 if (!existsSync(backup)) copyFileSync(target, backup);
 writeFileSync(target, patched, "utf8");
 console.log(
-  `patch-shortcircuit: disabled the templateCache short-circuit\n`
+  `patch-shortcircuit: ${
+    mode === "force"
+      ? "FORCED the templateCache short-circuit (always branch A)"
+      : "disabled the templateCache short-circuit (always branch B / RPC)"
+  }\n`
     + `  before: ${match[0]}\n`
-    + `  after : queryComponent:(${match[1]},${match[2]})=>{false?`,
+    + `  after : queryComponent:(${match[1]},${match[2]})=>{${predicate}?`,
 );
