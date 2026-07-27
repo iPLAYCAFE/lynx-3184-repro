@@ -171,6 +171,41 @@ from that chunk.
   the size threshold will move on faster or slower hardware. Use `--cpu <rate>`
   (CDP CPU throttling, emulating a loaded CI runner) if the default size passes.
 
+## Does `engineVersion: '3.9'` (the FetchBundle path) fix it? No — it fails silently instead
+
+The obvious mitigation is to move off `QueryComponent`, since the `FetchBundle`
+path installs the `rLynxPrepareLazyBundleMTS` handshake that `QueryComponent`
+lacks. `REPRO_ENGINE_VERSION=3.9 pnpm run build` builds exactly that, and the
+switch is real — in the built bundle `QueryComponent` goes 4 → **0**, the
+main-thread `evalResult` bailout 1 → **0**, and `fetchBundle` 0 → **5**.
+
+Measured, same harness (`REPRO_LAZY_ROWS` sizes the chunk):
+
+| build                            | small chunk (~30–60 kB) | large chunk (1.8–3.6 MB) |
+| -------------------------------- | ----------------------- | ------------------------ |
+| default (`QueryComponent`)       | **8/8 pass**            | 12/12 `Snapshot not found` |
+| `engineVersion: '3.9'` (`FetchBundle`) | **6/6 blank**     | **12/12 blank**          |
+
+`blank` = the eager shell rendered but the lazy subtree never appeared, **with
+no console error at all**. So on `web-core@0.22.2` the FetchBundle path never
+renders a lazy bundle, at any size — it trades a loud, size-dependent failure
+for a silent, universal one. The top-left cell is the control that shows the
+harness does report `pass` when the feature works.
+
+Consistent with that, upstream's own `web-core-e2e` suite appears to contain no
+case that builds with `engineVersion >= 3.9` (its only `fetchBundle` case is
+`tests/reactlynx/external-bundle`, which exercises `lynx.fetchBundle` for
+external bundles, not the lazy-bundle fetcher). So the lazy-bundle FetchBundle
+path may simply be untested on the web target.
+
+**Not established:** *why* it is silent. Reading the shipped runtime, the async
+FetchBundle path resolves `lazy()` only inside the
+`callLepusMethod(PREPARE_LAZY_BUNDLE_MTS, …)` callback, so a callback that never
+fires would look exactly like this — but that is a hypothesis, not a
+measurement. An attempt to probe the background-thread worker directly failed
+because `lynx` is not reachable from that realm's global scope
+(`probe-fetchbundle.mjs`), and a probe that cannot run is not evidence.
+
 ## Suggested fixes
 
 Any one of these closes it; they are not mutually exclusive.

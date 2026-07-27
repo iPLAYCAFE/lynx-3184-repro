@@ -36,7 +36,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const outFile = path.join(here, "..", "src", "lazy-chunk-generated.tsx");
 // 6000 rows => ~1.77 MB lazy chunk, comparable to the real app this was found
 // in (1.64 MB) and past the threshold where the failure becomes deterministic.
-const count = Number(process.argv[2] ?? 6000);
+//
+// `pnpm run build` calls this with no argument, so an earlier manual
+// `node scripts/gen-lazy-chunk.mjs 100` would be silently overwritten by the
+// default. `REPRO_LAZY_ROWS` is honoured so a size choice survives a full build.
+const count = Number(process.argv[2] ?? process.env["REPRO_LAZY_ROWS"] ?? 6000);
 
 const blocks = [];
 for (let i = 0; i < count; i++) {
