@@ -1,0 +1,28 @@
+{
+  "name": "lynx-3184-repro",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimum reproduction for lynx-family/lynx-stack#3184 — Lynx-for-Web QueryComponent lazy bundle resolves on the background thread before the main thread has registered the chunk's snapshots.",
+  "scripts": {
+    "gen": "node scripts/gen-lazy-chunk.mjs",
+    "build:app": "rspeedy build",
+    "build:host": "rsbuild build",
+    "build": "node scripts/gen-lazy-chunk.mjs && rspeedy build && node scripts/stage-bundle.mjs && rsbuild build",
+    "repro": "node repro.mjs"
+  },
+  "dependencies": {
+    "@lynx-js/lynx-core": "0.1.4",
+    "@lynx-js/react": "0.123.0",
+    "@lynx-js/web-core": "0.22.2",
+    "@lynx-js/web-elements": "0.12.6"
+  },
+  "devDependencies": {
+    "@lynx-js/react-rsbuild-plugin": "^0.18.0",
+    "@lynx-js/rspeedy": "^0.16.0",
+    "@lynx-js/types": "4.0.0",
+    "@rsbuild/core": "^2.1.6",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@11.10.0"
+}
