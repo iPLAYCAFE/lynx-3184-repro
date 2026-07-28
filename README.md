@@ -24,6 +24,8 @@ rendered at first screen.
 
 - `@lynx-js/web-core` **0.22.2** — and the two sites below are **byte-identical
   in the latest published `0.23.0`**, so this is not a stale-version issue.
+  That was a claim about the *source*; it has since been checked as *behaviour*
+  too — see "Does 0.23.0 fix it?" below.
 - `@lynx-js/lynx-core` 0.1.4 · `@lynx-js/react` 0.123.0 · `@lynx-js/rspeedy` 0.16.0
 - Default `engineVersion` → the **`QueryComponent`** lazy path
   (`FetchBundle` needs `>= '3.9'`). Verify: `grep -c fetchBundle dist/main.web.bundle` → `0`.
@@ -205,6 +207,34 @@ fires would look exactly like this — but that is a hypothesis, not a
 measurement. An attempt to probe the background-thread worker directly failed
 because `lynx` is not reachable from that realm's global scope
 (`probe-fetchbundle.mjs`), and a probe that cannot run is not evidence.
+
+## Does `@lynx-js/web-core` 0.23.0 fix it? No — measured, not just read
+
+The note at the top is a claim about the **source**: the two implicated sites are
+byte-identical in 0.23.0. This is the **behavioural** check, on the same harness
+and the same 6000-row / 1768 kB lazy chunk.
+
+| build | pass | `Snapshot not found` |
+| ----- | ---- | -------------------- |
+| `web-core` **0.22.2** (this branch) | 0 | **12/12** |
+| `web-core` **0.23.0** ([`measure/web-core-0.23.0`][m]) | 1 | **11/12** |
+
+Same snapshot id (`__snapshot_8a94a_6df73_1`), same `_1` suffix, same
+`rLynxChange` stack. The single pass is within the noise of a timing race whose
+rate this README already documents as machine- and size-dependent; it is not a
+partial fix. The 0.23.0 arm also carries `@lynx-js/react` 0.123.1 and
+`@lynx-js/web-elements` 0.12.7, matching the downstream that hit this.
+
+`main` deliberately stays pinned to 0.22.2 so the headline numbers above match
+what a reader reproduces; the 0.23.0 setup lives on its own branch.
+
+[m]: https://github.com/iPLAYCAFE/lynx-3184-repro/tree/measure/web-core-0.23.0
+
+**Why this was worth measuring rather than assuming.** In the downstream that
+filed this, the required web-host smoke check **passed** on the pull request that
+bumped `web-core` to 0.23.0 — and failed on two sibling PRs built from
+byte-identical app artifacts. Reading that single green as "0.23.0 fixed it" was
+available and would have been wrong; a race needs a rate, not a run.
 
 ## Suggested fixes
 
